@@ -136,8 +136,7 @@ mod tests {
 
             // Verify image was modified
             assert_ne!(
-                pixels_before,
-                img,
+                pixels_before, img,
                 "Image should be modified after drawing timestamp"
             );
         }
@@ -213,5 +212,4 @@ mod tests {
             );
         }
     }
-
 }

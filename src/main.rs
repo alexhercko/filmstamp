@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use clap::Parser;
 use image::{load_image, save_image};
-use image_metadata::extract_timestamp_from_image;
+use image_metadata::extract_timestamp_from_exif;
 use image_processing::add_timestamp_to_image;
 
 #[derive(Parser)]
@@ -24,10 +24,20 @@ fn main() -> Result<()> {
 
     println!("Processing file: {}", args.input.display());
 
-    let img = load_image(&args.input)
+    let (img, exif) = load_image(&args.input)
         .with_context(|| format!("Failed to load image: {}", args.input.display()))?;
 
-    let timestamp = extract_timestamp_from_image(&args.input).with_context(|| {
+    let exif = match exif {
+        Some(data) => data,
+        None => {
+            return Err(anyhow::anyhow!(
+                "No EXIF metadata found in the image: {}",
+                args.input.display()
+            ));
+        }
+    };
+
+    let timestamp = extract_timestamp_from_exif(exif).with_context(|| {
         format!(
             "Error extracting timestamp from EXIF data of image: {}",
             args.input.display()

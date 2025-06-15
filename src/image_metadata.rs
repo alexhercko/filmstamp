@@ -1,22 +1,14 @@
-use std::path::Path;
-
 use anyhow::{Context, Result, anyhow};
 
-/// Extracts the timestamp from an image file using EXIF metadata.
+/// Extracts timestamp from raw EXIF data bytes extracted from an image.
 /// Currently, it only supports the DateTimeOriginal field.
 ///
 /// If extracting the timestamp or parsing it fails, an error is returned.
-pub fn extract_timestamp_from_image(img_path: &Path) -> Result<chrono::NaiveDateTime> {
-    let file = std::fs::File::open(img_path)?;
-    let mut bufreader = std::io::BufReader::new(file);
-    extract_timestamp_from_image_reader(&mut bufreader)
-}
-
-fn extract_timestamp_from_image_reader<R: std::io::BufRead + std::io::Seek>(
-    reader: &mut R,
-) -> Result<chrono::NaiveDateTime> {
+pub fn extract_timestamp_from_exif(raw_exif: Vec<u8>) -> Result<chrono::NaiveDateTime> {
     let exifreader = exif::Reader::new();
-    let exif = exifreader.read_from_container(reader)?;
+    let exif = exifreader
+        .read_raw(raw_exif)
+        .map_err(|e| anyhow!("Failed to read EXIF data from raw bytes: {}", e))?;
 
     let datetime = match exif.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY) {
         Some(timestamp) => extract_timestamp_from_exif_field(timestamp)?,
@@ -65,24 +57,22 @@ mod tests {
 
     use super::*;
 
-    mod extract_timestamp_from_image_reader_tests {
+    mod extract_timestamp_from_exif_tests {
         use super::*;
 
         #[test]
-        fn test_extract_timestamp_from_image_reader_empty_data() {
-            let empty_data: &[u8] = &[];
-            let mut cursor = std::io::Cursor::new(empty_data);
+        fn test_extract_timestamp_from_exif_empty_data() {
+            let empty_data: Vec<u8> = vec![];
 
-            let result = extract_timestamp_from_image_reader(&mut cursor);
+            let result = extract_timestamp_from_exif(empty_data);
             assert!(result.is_err());
         }
 
         #[test]
-        fn test_extract_timestamp_from_image_reader_invalid_data() {
-            let invalid_data = b"not a valid image";
-            let mut cursor = std::io::Cursor::new(invalid_data);
+        fn test_extract_timestamp_from_exif_invalid_data() {
+            let invalid_data: Vec<u8> = b"not a valid image".to_vec();
 
-            let result = extract_timestamp_from_image_reader(&mut cursor);
+            let result = extract_timestamp_from_exif(invalid_data);
             assert!(result.is_err());
         }
     }
