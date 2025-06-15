@@ -1,7 +1,8 @@
 use anyhow::{Context, Result, anyhow};
 
 /// Extracts timestamp from raw EXIF data bytes extracted from an image.
-/// Currently, it only supports the DateTimeOriginal field.
+/// The timestamp is expected to be in the EXIF fields `DateTimeOriginal`, `DateTimeDigitized`, or
+/// `DateTime`, in that order of preference.
 ///
 /// If extracting the timestamp or parsing it fails, an error is returned.
 pub fn extract_timestamp_from_exif(raw_exif: Vec<u8>) -> Result<chrono::NaiveDateTime> {
@@ -10,14 +11,24 @@ pub fn extract_timestamp_from_exif(raw_exif: Vec<u8>) -> Result<chrono::NaiveDat
         .read_raw(raw_exif)
         .map_err(|e| anyhow!("Failed to read EXIF data from raw bytes: {}", e))?;
 
-    let datetime = match exif.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY) {
-        Some(timestamp) => extract_timestamp_from_exif_field(timestamp)?,
-        None => {
-            return Err(anyhow!(
-                "No EXIF timestamp (DateTimeOriginal field) found in the image."
-            ));
+    let timestamp_fields = [
+        exif::Tag::DateTimeOriginal,
+        exif::Tag::DateTimeDigitized,
+        exif::Tag::DateTime,
+    ];
+
+    let mut datetime = None;
+    for tag in timestamp_fields {
+        datetime = exif
+            .get_field(tag, exif::In::PRIMARY)
+            .and_then(|field| extract_timestamp_from_exif_field(field).ok());
+
+        if datetime.is_some() {
+            break;
         }
-    };
+    }
+
+    let datetime = datetime.ok_or(anyhow!("No valid EXIF timestamp found in the image from tags DateTimeOriginal, DateTimeDigitized, or DateTime."))?;
 
     let naive_datetime = exif_datetime_to_naive_datetime(&datetime)?;
     Ok(naive_datetime)
