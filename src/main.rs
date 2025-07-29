@@ -17,6 +17,9 @@ struct CliArgs {
 
     #[arg(short, long, help = "Output file path.")]
     output: PathBuf,
+
+    #[arg(short, long, help = "Add shadow effect to the timestamp.")]
+    shadow: bool,
 }
 
 fn main() -> Result<()> {
@@ -47,7 +50,7 @@ fn main() -> Result<()> {
     // Format specifiers: https://docs.rs/chrono/latest/chrono/format/strftime/index.html#specifiers
     let timestamp = timestamp.format("%-d  %-m  %-Y   %-H:%-M").to_string();
 
-    let stamped_img = add_timestamp_to_image(&img, &timestamp)
+    let stamped_img = add_timestamp_to_image(&img, &timestamp, args.shadow)
         .with_context(|| format!("Error adding timestamp to image: {}", args.input.display()))?;
 
     save_image(&stamped_img, &args.output)

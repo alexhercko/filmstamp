@@ -9,7 +9,16 @@ const HEIGHT_POSITION_FACTOR: u32 = 16;
 const SHADOW_OFFSET_X: i32 = 4;
 const SHADOW_OFFSET_Y: i32 = 4;
 
-pub fn add_timestamp_to_image(img: &DynamicImage, timestamp: &str) -> Result<DynamicImage> {
+
+/// Adds specified timestamp (or any string) to the image.
+/// Allows for optional shadow effect.
+///
+/// Throws an error if the timestamp is empty or if the default font cannot be loaded.
+pub fn add_timestamp_to_image(
+    img: &DynamicImage,
+    timestamp: &str,
+    apply_shadow: bool,
+) -> Result<DynamicImage> {
     if timestamp.is_empty() {
         return Err(anyhow::anyhow!("Timestamp cannot be empty"));
     }
@@ -25,15 +34,17 @@ pub fn add_timestamp_to_image(img: &DynamicImage, timestamp: &str) -> Result<Dyn
     let shadow_color = Rgb([0u8, 0u8, 0u8]);
     let text_color = Rgb([255u8, 165u8, 0u8]);
 
-    draw_shadow(
-        &mut img,
-        shadow_color,
-        text_x,
-        text_y,
-        &font,
-        font_size,
-        timestamp,
-    );
+    if apply_shadow {
+        draw_shadow(
+            &mut img,
+            shadow_color,
+            text_x,
+            text_y,
+            &font,
+            font_size,
+            timestamp,
+        );
+    }
 
     draw_timestamp(
         &mut img, text_color, text_x, text_y, &font, font_size, timestamp,
@@ -114,7 +125,7 @@ mod tests {
             let dynamic_img = DynamicImage::ImageRgb8(rgb_img);
 
             let timestamp = "2025-15-06 11:08:00";
-            let result = add_timestamp_to_image(&dynamic_img, timestamp);
+            let result = add_timestamp_to_image(&dynamic_img, timestamp, true);
 
             assert!(result.is_ok(), "Failed to add timestamp to image");
 
@@ -137,7 +148,7 @@ mod tests {
             let rgb_img = RgbImage::new(width, height);
             let dynamic_img = DynamicImage::ImageRgb8(rgb_img);
 
-            let result = add_timestamp_to_image(&dynamic_img, "");
+            let result = add_timestamp_to_image(&dynamic_img, "", true);
 
             assert!(result.is_err(), "Expected error for empty timestamp");
         }
@@ -224,13 +235,7 @@ mod tests {
 
             let img_shadow_only = img.clone();
             draw_timestamp(
-                &mut img,
-                text_color,
-                text_x,
-                text_y,
-                &font,
-                font_size,
-                timestamp,
+                &mut img, text_color, text_x, text_y, &font, font_size, timestamp,
             );
 
             assert_ne!(
