@@ -1,11 +1,13 @@
 use ab_glyph::{FontRef, PxScale};
 use anyhow::Result;
-use image::{DynamicImage, Rgb};
+use image::{DynamicImage, Rgb, RgbImage};
 use imageproc::drawing::draw_text_mut;
 
 const FONT_SIZE_FACTOR: u32 = 40;
 const WIDTH_POSITION_FACTOR: u32 = 6;
 const HEIGHT_POSITION_FACTOR: u32 = 16;
+const SHADOW_OFFSET_X: i32 = 4;
+const SHADOW_OFFSET_Y: i32 = 4;
 
 pub fn add_timestamp_to_image(img: &DynamicImage, timestamp: &str) -> Result<DynamicImage> {
     if timestamp.is_empty() {
@@ -20,11 +22,41 @@ pub fn add_timestamp_to_image(img: &DynamicImage, timestamp: &str) -> Result<Dyn
     let font_size = calculate_font_size(img_width, img_height);
     let (text_x, text_y) = calculate_text_position(img_width, img_height);
 
-    let color = Rgb([255u8, 165u8, 0u8]);
+    let shadow_color = Rgb([0u8, 0u8, 0u8]);
+    let text_color = Rgb([255u8, 165u8, 0u8]);
 
-    draw_timestamp(&mut img, color, text_x, text_y, &font, font_size, timestamp);
+    draw_shadow(
+        &mut img,
+        shadow_color,
+        text_x,
+        text_y,
+        &font,
+        font_size,
+        timestamp,
+    );
+
+    draw_timestamp(
+        &mut img, text_color, text_x, text_y, &font, font_size, timestamp,
+    );
 
     Ok(DynamicImage::ImageRgb8(img))
+}
+
+fn draw_shadow(
+    img: &mut RgbImage,
+    color: Rgb<u8>,
+    text_x: u32,
+    text_y: u32,
+    font: &FontRef<'static>,
+    font_size: u32,
+    timestamp: &str,
+) {
+    let scale = PxScale::from(font_size as f32);
+
+    let shadow_x = text_x as i32 + SHADOW_OFFSET_X;
+    let shadow_y = text_y as i32 + SHADOW_OFFSET_Y;
+
+    draw_text_mut(img, color, shadow_x, shadow_y, scale, font, timestamp);
 }
 
 fn draw_timestamp(
@@ -128,16 +160,82 @@ mod tests {
             let font_size = 20;
             let timestamp = "2023-01-01 12:34:56";
 
-            // Take snapshot of pixels before
             let pixels_before = img.clone();
 
-            // Draw timestamp
             draw_timestamp(&mut img, color, text_x, text_y, &font, font_size, timestamp);
 
-            // Verify image was modified
             assert_ne!(
                 pixels_before, img,
                 "Image should be modified after drawing timestamp"
+            );
+        }
+    }
+
+    mod draw_shadow_tests {
+        use super::*;
+        use image::{ImageBuffer, Rgb};
+
+        #[test]
+        fn test_draw_shadow_applies_shadow() {
+            let width = 400;
+            let height = 300;
+            let mut img = ImageBuffer::new(width, height);
+
+            let color = Rgb([1, 1, 1]);
+            let text_x = 300;
+            let text_y = 200;
+            let font = load_default_font().unwrap();
+            let font_size = 20;
+            let timestamp = "2023-01-01 12:34:56";
+
+            let pixels_before = img.clone();
+
+            draw_shadow(&mut img, color, text_x, text_y, &font, font_size, timestamp);
+
+            assert_ne!(
+                pixels_before, img,
+                "Image should be modified after drawing shadow"
+            );
+        }
+
+        #[test]
+        fn test_draw_shadow_has_correct_offset() {
+            let width = 400;
+            let height = 300;
+            let mut img = ImageBuffer::new(width, height);
+
+            let shadow_color = Rgb([1, 1, 1]);
+            let text_color = Rgb([1, 1, 1]);
+            let text_x = 200;
+            let text_y = 150;
+            let font = load_default_font().unwrap();
+            let font_size = 20;
+            let timestamp = "2023-01-01";
+
+            draw_shadow(
+                &mut img,
+                shadow_color,
+                text_x,
+                text_y,
+                &font,
+                font_size,
+                timestamp,
+            );
+
+            let img_shadow_only = img.clone();
+            draw_timestamp(
+                &mut img,
+                text_color,
+                text_x,
+                text_y,
+                &font,
+                font_size,
+                timestamp,
+            );
+
+            assert_ne!(
+                img_shadow_only, img,
+                "Shadow should be in a different position than text"
             );
         }
     }
