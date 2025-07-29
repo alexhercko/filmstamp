@@ -10,16 +10,21 @@ use image::{load_image, save_image};
 use image_metadata::extract_timestamp_from_exif;
 use image_processing::add_timestamp_to_image;
 
+const DEFAULT_JPEG_QUALITY: u8 = 97;
+
 #[derive(Parser)]
 #[command(name = "filmstamp", version, about = "Add film-like timestamps to photos using Exif data.", long_about = None)]
 struct CliArgs {
     input: PathBuf,
 
-    #[arg(short, long, help = "Output file path.")]
+    #[arg(short, long, help = "Output file path")]
     output: PathBuf,
 
-    #[arg(short, long, help = "Add shadow effect to the timestamp.")]
+    #[arg(short, long, help = "Add shadow effect to the timestamp")]
     shadow: bool,
+
+    #[arg(short, long, default_value_t = DEFAULT_JPEG_QUALITY, help = "JPEG quality (percentage)")]
+    quality: u8
 }
 
 fn main() -> Result<()> {
@@ -53,7 +58,7 @@ fn main() -> Result<()> {
     let stamped_img = add_timestamp_to_image(&img, &timestamp, args.shadow)
         .with_context(|| format!("Error adding timestamp to image: {}", args.input.display()))?;
 
-    save_image(&stamped_img, &args.output)
+    save_image(&stamped_img, &args.output, args.quality)
         .with_context(|| format!("Failed to save stamped image to: {}", args.output.display()))?;
 
     println!("Image saved to: {}", args.output.display());

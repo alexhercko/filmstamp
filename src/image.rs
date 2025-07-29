@@ -3,7 +3,6 @@ use std::{fs::File, io::BufWriter};
 use anyhow::Result;
 use image::{codecs::jpeg::JpegEncoder, DynamicImage, ImageDecoder, ImageReader};
 
-const DEFAULT_JPEG_QUALITY: u8 = 97;
 
 /// Loads an image from the specified path and returns a tuple containing the loaded `DynamicImage`
 /// along with its EXIF metadata if present.
@@ -28,12 +27,12 @@ pub fn load_image(path: &std::path::Path) -> Result<(DynamicImage, Option<Vec<u8
     Ok((image, exif))
 }
 
-/// Saves the provided `DynamicImage` to the specified path.
-pub fn save_image(image: &DynamicImage, path: &std::path::Path) -> Result<()> {
+/// Saves the provided `DynamicImage` to the specified path with the specified JPEG quality.
+pub fn save_image(image: &DynamicImage, path: &std::path::Path, jpeg_quality: u8) -> Result<()> {
     let output_file = File::create(path)
         .map_err(|e| anyhow::anyhow!("Failed to create output file: {}", e))?;
     let writer = BufWriter::new(output_file);
-    let encoder = JpegEncoder::new_with_quality(writer, DEFAULT_JPEG_QUALITY);
+    let encoder = JpegEncoder::new_with_quality(writer, jpeg_quality);
     image
         .write_with_encoder(encoder)
         .map_err(|e| anyhow::anyhow!("Failed to save image: {}", e))?;
